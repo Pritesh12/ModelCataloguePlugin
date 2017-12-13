@@ -12,27 +12,27 @@ import org.springframework.beans.factory.annotation.Autowired
  * <p/>
  * The marshallers are registered in the {@link AbstractMarshaller#register()} method.
  */
-abstract class AbstractMarshaller {
+abstract class AbstractMarshaller<T> {
 
     @Autowired ReportsRegistry reportsRegistry
     @Autowired SecurityService modelCatalogueSecurityService
     @Autowired DataModelAclService dataModelAclService
     @Autowired JsonMarshallingCustomizerRegistry jsonMarshallingCustomizerRegistry
 
-    final Class type
+    final Class<T> type
 
-    AbstractMarshaller(Class type) {
+    AbstractMarshaller(Class<T> type) {
         this.type = type
     }
 
     final void register() {
-        JSON.registerObjectMarshaller(type) { el ->
+        JSON.registerObjectMarshaller(type) { T el ->
             if (!el) return null
             jsonMarshallingCustomizerRegistry.postProcessJson(el, prepareJsonMap(el))
         }
     }
 
-    abstract protected Map<String, Object> prepareJsonMap(element)
+    abstract protected Map<String, Object> prepareJsonMap(T element)
 
     protected getAvailableReports(el) {
         // TODO: this should be moved to the frontend

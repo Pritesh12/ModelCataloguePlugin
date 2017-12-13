@@ -3,9 +3,10 @@ package org.modelcatalogue.core.util.marshalling
 import org.modelcatalogue.core.actions.Action
 import org.modelcatalogue.core.actions.ActionRunner
 import org.modelcatalogue.core.actions.ActionService
+import org.modelcatalogue.core.actions.CreateMatch
 import org.springframework.beans.factory.annotation.Autowired
 
-class ActionMarshaller extends AbstractMarshaller {
+class ActionMarshaller extends AbstractMarshaller<Action> {
 
     @Autowired ActionService actionService
 
@@ -13,7 +14,7 @@ class ActionMarshaller extends AbstractMarshaller {
         super(Action)
     }
 
-    protected Map<String, Object> prepareJsonMap(el) {
+    protected Map<String, Object> prepareJsonMap(Action el) {
         if (!el) return [:]
 
 
@@ -46,6 +47,10 @@ class ActionMarshaller extends AbstractMarshaller {
             ret.message             = runner.message
             ret.naturalName         = runner.naturalName
             ret.requiredParameters  = runner.requiredParameters
+
+            if (runner instanceof CreateMatch) {
+                ret.matchParameters = ((CreateMatch) runner).getMatchParams()
+            }
         }
 
         ret.putAll parameters: el?.ext

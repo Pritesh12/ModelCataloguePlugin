@@ -93,7 +93,7 @@ class BatchController extends AbstractRestfulController<Batch> {
 
     def listActions(Integer max) {
 
-        handleParams(max)
+        params.max = max
 
         if (!params.id) {
             notFound()

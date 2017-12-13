@@ -32,29 +32,14 @@ class CreateMatch extends AbstractActionRunner {
 
     String getMessage() {
 //
-        def destination = decodeEntity(parameters?.destination)
-        def source = decodeEntity(parameters?.source)
-        def matchScore = parameters?.matchScore
-        //If no matchscore then we assume this is being used by the exactMatch routine so insert 100
-        if(!matchScore){
-            matchScore = """100"""
-        }
+        MatchParams matchParams = getMatchParams()
         def additionalMessage = parameters?.message
-
-
-
-        String destClass = GrailsNameUtils.getPropertyName(destination.class)
-        String destId = destination.id as String
-        String destClassifiedName = CatalogueElementMarshaller.getClassifiedName(destination)
-
-        String sourceClass = GrailsNameUtils.getPropertyName(source.class)
-        String sourceId =       source.id
-        String sourceClassName = CatalogueElementMarshaller.getClassifiedName(source)
-
         String type = decodeEntity(parameters.type)
 
-        String srclink = """<a target="_blank" href='#/catalogue/${sourceClass}/${sourceId}'> '${sourceClassName}'</a>"""
-        String destLink = """<a target="_blank" href='#/catalogue/${destClass}/${destId}'> '${destClassifiedName}'</a>"""
+        String srclink = """<a target="_blank" href='#/catalogue/${matchParams.source.sourceClass}/${matchParams.source.sourceId}'> 
+'${matchParams.source.sourceClassifiedName}'</a>"""
+        String destLink = """<a target="_blank" href='#/catalogue/${matchParams.dest.destClass}/${matchParams.dest.destId}'> 
+'${matchParams.dest.destClassifiedName}'</a>"""
 
         String desc = """  <table class="table">
                       <tr>
@@ -64,7 +49,7 @@ class CreateMatch extends AbstractActionRunner {
                       </tr>
                       <tr>
                         <td>${srclink}</td>
-                        <td>${matchScore}</td>
+                        <td>${matchParams.matchScore}</td>
                         <td>${destLink}</td>
                       </tr>
                     </table> 
@@ -186,10 +171,68 @@ class CreateMatch extends AbstractActionRunner {
     List<String> getRequiredParameters() {
         ['source', 'destination', 'type']
     }
+    MatchParams getMatchParams() {
+
+        def destination = decodeEntity(parameters?.destination)
+        def source = decodeEntity(parameters?.source)
+        def matchScore = parameters?.matchScore
+        //If no matchscore then we assume this is being used by the exactMatch routine so insert 100
+        if(!matchScore){
+            matchScore = """100"""
+        }
+
+
+
+        String destClass = GrailsNameUtils.getPropertyName(destination.class)
+        String destId = destination.id as String
+        String destClassifiedName = CatalogueElementMarshaller.getClassifiedName(destination)
+
+        String sourceClass = GrailsNameUtils.getPropertyName(source.class)
+        String sourceId =       source.id
+        String sourceClassifiedName = CatalogueElementMarshaller.getClassifiedName(source)
+
+        return new MatchParams(new SourceInfo(sourceClass, sourceId, sourceClassifiedName), matchScore,
+                new DestInfo(destClass, destId, destClassifiedName))
+    }
 
 
 
 
 
+}
 
+class MatchParams {
+    SourceInfo source
+    String matchScore
+    DestInfo dest
+
+    MatchParams(SourceInfo source, String matchScore, DestInfo dest) {
+        this.source = source
+        this.matchScore = matchScore
+        this.dest = dest
+    }
+}
+
+class SourceInfo {
+    String sourceClass
+    String sourceId
+    String sourceClassifiedName
+
+    SourceInfo(String sourceClass, String sourceId, String sourceClassifiedName) {
+        this.sourceClass = sourceClass
+        this.sourceId = sourceId
+        this.sourceClassifiedName = sourceClassifiedName
+    }
+}
+
+class DestInfo {
+    String destClass
+    String destId
+    String destClassifiedName
+
+    DestInfo(String destClass, String destId, String destClassifiedName) {
+        this.destClass = destClass
+        this.destId = destId
+        this.destClassifiedName = destClassifiedName
+    }
 }
