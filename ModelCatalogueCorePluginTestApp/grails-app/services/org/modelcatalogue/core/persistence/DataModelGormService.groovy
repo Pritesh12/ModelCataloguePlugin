@@ -21,6 +21,12 @@ class DataModelGormService implements WarnGormErrors {
 
     @Transactional(readOnly = true)
     @PostFilter("hasPermission(filterObject, read) or hasPermission(filterObject, admin) or hasRole('ROLE_ADMIN') or hasRole('ROLE_SUPERVISOR')")
+    DataModel findByName(String nameParam, String sort = 'versionNumber', String orderDirection = 'desc') {
+        DataModel.where { name == nameParam }.order(sort, orderDirection).get()
+    }
+
+    @Transactional(readOnly = true)
+    @PostFilter("hasPermission(filterObject, read) or hasPermission(filterObject, admin) or hasRole('ROLE_ADMIN') or hasRole('ROLE_SUPERVISOR')")
     List<DataModel> findAll() {
         DataModel.findAll()
     }
@@ -58,6 +64,17 @@ class DataModelGormService implements WarnGormErrors {
     @Transactional
     DataModel saveWithNameAndDescriptonAndStatus(String name, String description, ElementStatus status) {
         DataModel dataModelInstance = new DataModel(name: name, description: description, status: status)
+        if ( !dataModelInstance.save() ) {
+            warnErrors(dataModelInstance, messageSource)
+            transactionStatus.setRollbackOnly()
+        }
+        dataModelInstance
+    }
+
+    @PreAuthorize("hasRole('ROLE_METADATA_CURATOR') or hasRole('ROLE_ADMIN') or hasRole('ROLE_SUPERVISOR')")
+    @Transactional
+    DataModel saveWithName(String name) {
+        DataModel dataModelInstance = new DataModel(name: name)
         if ( !dataModelInstance.save() ) {
             warnErrors(dataModelInstance, messageSource)
             transactionStatus.setRollbackOnly()

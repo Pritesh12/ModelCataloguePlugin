@@ -29,6 +29,12 @@ class DataElementGormService implements WarnGormErrors {
     }
 
     @Transactional
+    DataElement save(Map<String, Object> params) {
+        DataElement dataElementInstance = new DataElement(params)
+        save(dataElementInstance)
+    }
+
+    @Transactional
     DataElement save(DataElement dataElementInstance) {
         if ( !dataElementInstance.save() ) {
             warnErrors(dataElementInstance, messageSource)
@@ -60,6 +66,24 @@ class DataElementGormService implements WarnGormErrors {
     @Transactional
     DataElement saveWithNameAndDescriptionAndStatusAndDataModel(String name, String description, ElementStatus status, DataModel dataModel) {
         save(new DataElement(name: name, description: description, status: status, dataModel: dataModel))
+    }
+
+    @Transactional(readOnly = true)
+    DataElement findByNameAndDataModel(String name, DataModel dataModel) {
+        findQueryByNameAndDataModel(name, dataModel).get()
+    }
+
+    @Transactional(readOnly = true)
+    DataElement findByModelCatalogueIdAndDataModel(String modelCatalogueId, DataModel dataModel) {
+        findQueryByModelCatalogueIdAndDataModel(modelCatalogueId, dataModel).get()
+    }
+
+    protected DetachedCriteria<DataElement> findQueryByModelCatalogueIdAndDataModel(String modelCatalogueIdParam, DataModel dataModelParam) {
+        DataElement.where { modelCatalogueId == modelCatalogueIdParam && dataModel == dataModelParam }
+    }
+
+    protected DetachedCriteria<DataElement> findQueryByNameAndDataModel(String nameParam, DataModel dataModelParam) {
+        DataElement.where { name == nameParam && dataModel == dataModelParam }
     }
 
     protected DetachedCriteria<DataElement> findQueryByName(String nameParam) {

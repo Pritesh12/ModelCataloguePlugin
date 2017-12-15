@@ -3,7 +3,10 @@ package org.modelcatalogue.core.persistence
 import grails.gorm.DetachedCriteria
 import grails.transaction.Transactional
 import org.modelcatalogue.core.DataClass
+import org.modelcatalogue.core.DataElement
+import org.modelcatalogue.core.DataModel
 import org.modelcatalogue.core.DataType
+import org.modelcatalogue.core.PrimitiveType
 import org.modelcatalogue.core.WarnGormErrors
 import org.modelcatalogue.core.api.ElementStatus
 import org.springframework.context.MessageSource
@@ -26,6 +29,11 @@ class DataTypeGormService implements WarnGormErrors {
         DataType.where { name == nameParam }
     }
 
+    @Transactional
+    DataType save(Map<String, Object> params) {
+        DataType dataTypeInstance = new DataType(params)
+        save(dataTypeInstance)
+    }
 
     @Transactional
     DataType save(DataType dataTypeInstance) {
@@ -39,5 +47,23 @@ class DataTypeGormService implements WarnGormErrors {
     @Transactional
     DataType saveWithStatusAndNameAndDescription(ElementStatus status, String name, String description) {
         save(new DataType(name: name, description: description, status: status))
+    }
+
+    @Transactional(readOnly = true)
+    DataType findByModelCatalogueIdAndDataModel(String modelCatalogueId, DataModel dataModel) {
+        findQueryByModelCatalogueIdAndDataModel(modelCatalogueId, dataModel).get()
+    }
+
+    protected DetachedCriteria<DataType> findQueryByModelCatalogueIdAndDataModel(String modelCatalogueIdParam, DataModel dataModelParam) {
+        DataType.where { modelCatalogueId == modelCatalogueIdParam && dataModel == dataModelParam }
+    }
+
+    @Transactional(readOnly = true)
+    DataType findByNameAndDataModel(String name, DataModel dataModel) {
+        findQueryByNameAndDataModel(name, dataModel).get()
+    }
+
+    protected DetachedCriteria<DataType> findQueryByNameAndDataModel(String nameParam, DataModel dataModelParam) {
+        DataType.where { name == nameParam && dataModel == dataModelParam }
     }
 }

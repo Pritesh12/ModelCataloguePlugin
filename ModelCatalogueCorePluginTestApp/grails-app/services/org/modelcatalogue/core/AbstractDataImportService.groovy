@@ -48,11 +48,9 @@ abstract class AbstractDataImportService {
         Long userId = springSecurityService.principal?.id
         executeInBackground(assetId, executeBackgroundMessage) {
             try {
-                //DataModel.withTransaction {
                 loadInputStream(defaultCatalogueBuilder, inputStream, name)
                 DataModel dataModelInstance = findCreatedDataModel(defaultCatalogueBuilder.created)
                 finalizeAsset(assetId, dataModelInstance, userId)
-                //}
 
             } catch (Exception e) {
                 logError(assetId, e)

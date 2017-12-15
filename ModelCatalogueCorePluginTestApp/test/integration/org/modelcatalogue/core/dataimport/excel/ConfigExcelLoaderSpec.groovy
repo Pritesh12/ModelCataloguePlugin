@@ -27,8 +27,9 @@ class ConfigExcelLoaderSpec extends AbstractIntegrationSpec {
         DataModel.findByName(dataModelName)
 
         where:
-        dataModelName  | headersMapXml           | dataXlsx
-        'LOINC_TEST01' | 'loinc_headers_map.xml' | 'loinc.xlsx'
-        'GOSH_TEST1'   | 'gosh_headers_map.xml'  | 'GOSH_lab_test_codes100.xlsx'
+        dataModelName    | headersMapXml           | dataXlsx
+        'LOINC_TEST01'   | 'loinc_headers_map.xml' | 'loinc.xlsx'
+        'LOINC_TEST1000' | 'loinc_headers_map.xml' | 'loinc1000.xlsx'
+        'GOSH_TEST1'     | 'gosh_headers_map.xml'  | 'GOSH_lab_test_codes100.xlsx'
     }
 }

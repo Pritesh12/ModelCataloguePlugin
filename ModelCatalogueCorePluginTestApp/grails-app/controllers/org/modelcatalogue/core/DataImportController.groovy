@@ -40,6 +40,8 @@ class DataImportController  {
     def dataClassService
     DataImportXmlService dataImportXmlService
     DataImportOboService dataImportOboService
+    DataImportExcelService dataImportExcelService
+    LoinicImportService loinicImportService
     AssetGormService assetGormService
     UserGormService userGormService
 
@@ -74,11 +76,6 @@ class DataImportController  {
             return
         }
 
-        //// get stuff from the request.
-        // user-provided model name. It's the filename by default. In the past we have just gotten the filename directly anyways. But it's here.
-        String modelName = request.getParameter('modelName')
-
-
         // XML config (including headers map) file for any "generic/customizable" excel importer. At some point, we might want to introduce some validation, either on front or back end or both. If both, the XSD file used to validate should be the same, and provided by the backend. You can access file.inputStream.
         MultipartFile excelConfigXMLFileMultipart = request.getFile("excelConfigXMLFile")
 
@@ -105,19 +102,8 @@ class DataImportController  {
         if (excelImportType == ExcelImportType.LOINC ||
             excelImportType == ExcelImportType.GOSH_LAB_TEST_CODES) {
             if (checkFileNameTypeAndContainsString(file,'.xls')) {
-                Asset asset = assetService.storeAsset(params, file, 'application/vnd.ms-excel')
-                Long id = asset.id
-                InputStream inputStream = file.inputStream
-                InputStream xmlConfigStream = excelConfigXMLFileMultipart.inputStream
-                String filename = file.originalFilename
-                Workbook wb = WorkbookFactory.create(inputStream)
-                defaultCatalogueBuilder.monitor = BuildProgressMonitor.create("Importing $file.originalFilename", id)
-                executeInBackground(id, "Imported from Excel") {
-                    // TODO: Use the excelConfigXMLFile in a method similar to that below.
-                    loadConfigSpreadsheet(wb, modelName, xmlConfigStream, id, userId)
-
-                }
-                redirectToAsset(id)
+                Long assetId = loinicImportService.importFile(params, file, excelConfigXMLFileMultipart)
+                redirectToAsset(assetId)
                 return
             }
         }
@@ -189,22 +175,9 @@ class DataImportController  {
 
         //Default excel import - "standardImport" – which assumes data is in the 'Grid data' format
         suffix = "xls"
-        if (checkFileNameTypeAndContainsString(file,suffix)) {
-            Asset asset = assetService.storeAsset(params, file, 'application/vnd.ms-excel')
-            Long id = asset.id
-            InputStream inputStream = file.inputStream
-            Workbook wb = WorkbookFactory.create(inputStream)
-            defaultCatalogueBuilder.monitor = BuildProgressMonitor.create("Importing $file.originalFilename", id)
-            executeInBackground(id, "Imported from Excel") {
-                try {
-                    ExcelLoader parser = new ExcelLoader()
-                    parser.buildModelFromStandardWorkbookSheet(HeadersMap.createForStandardExcelLoader(), inputStream, )
-                    finalizeAsset(id, (DataModel) (defaultCatalogueBuilder.created.find {it.instanceOf(DataModel)} ?: defaultCatalogueBuilder.created.find{it.dataModel}?.dataModel), userId)
-                } catch (Exception e) {
-                    logError(id, e)
-                }
-            }
-            redirectToAsset(id)
+        if (checkFileNameTypeAndContainsString(file, '.xls')) {
+            Long assetId = dataImportExcelService.importFile(params, file)
+            redirectToAsset(assetId)
             return
         }
 
@@ -370,7 +343,6 @@ class DataImportController  {
         }
     }
     // the generic loader based on the LOINC loader
-    @Async
     protected void loadConfigSpreadsheet(Workbook wb, String modelName, InputStream xmlConfigStream, Long id, Long userId) {
         auditService.mute {
             try {

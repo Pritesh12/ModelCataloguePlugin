@@ -3,7 +3,7 @@ package org.modelcatalogue.core
 import org.modelcatalogue.core.util.builder.DefaultCatalogueBuilder
 import org.modelcatalogue.integration.xml.CatalogueXmlLoader
 
-class DataImportXmlService extends  AbstractDataImportService {
+class DataImportXmlService extends AbstractDataImportService {
 
     @Override
     String getContentType() {
