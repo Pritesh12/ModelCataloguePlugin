@@ -780,7 +780,7 @@ class DataModelController<T extends CatalogueElement> extends AbstractCatalogueE
 
     protected ListWithTotalAndType<DataModel> instantiateListWithTotalAndTypeWithCriteria(DetachedCriteria<DataModel> criteria, Map<String, Object> params) {
         List<DataModel> dataModelList = dataModelGormService.findAllByCriteriaAndParams(criteria, params)
-        total = dataModelGormService.findAllByCriteria(criteria).size()
+        int total = dataModelGormService.findAllByCriteria(criteria).size()
         new ListWithTotalAndTypeImpl<DataModel>(DataModel, dataModelList, total as Long)
     }
 }
