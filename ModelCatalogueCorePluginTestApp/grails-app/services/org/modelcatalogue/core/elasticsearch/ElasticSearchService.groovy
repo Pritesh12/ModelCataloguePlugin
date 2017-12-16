@@ -1,5 +1,7 @@
 package org.modelcatalogue.core.elasticsearch
 
+import org.modelcatalogue.core.security.DataModelAclService
+
 import static org.modelcatalogue.core.util.HibernateHelper.getEntityClass
 import static rx.Observable.from
 import static rx.Observable.just
@@ -91,6 +93,7 @@ class ElasticSearchService implements SearchCatalogue {
     ElementService elementService
     SecurityService modelCatalogueSecurityService
     DataModelGormService dataModelGormService
+    DataModelAclService dataModelAclService
 
     Node node
     Client client
@@ -260,8 +263,8 @@ class ElasticSearchService implements SearchCatalogue {
                 .setIndicesOptions(IndicesOptions.lenientExpandOpen())
                 .setQuery(boolQuery)
 
-
-        return ElasticSearchQueryList.search(params, Relationship, request)
+        ListWithTotalAndType listWithTotalAndType = ElasticSearchQueryList.search(params, Relationship, request, dataModelAclService)
+        listWithTotalAndType
     }
 
     @Override
@@ -344,7 +347,8 @@ class ElasticSearchService implements SearchCatalogue {
                 .setQuery(qb)
 
 
-        return ElasticSearchQueryList.search(params,resource, request)
+        ListWithTotalAndType listWithTotalAndType = ElasticSearchQueryList.search(params, resource, request, dataModelAclService)
+        listWithTotalAndType
     }
 
     @CompileStatic
@@ -423,7 +427,8 @@ class ElasticSearchService implements SearchCatalogue {
                 .setQuery(qb)
                 .setMinScore(minScore.toFloat())
 
-        return ElasticSearchQueryList.search(params,resource, request)
+        ListWithTotalAndType listWithTotalAndType = ElasticSearchQueryList.search(params,resource, request, dataModelAclService)
+        listWithTotalAndType
     }
 
 
