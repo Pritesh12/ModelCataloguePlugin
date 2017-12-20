@@ -226,6 +226,10 @@ class BatchController extends AbstractRestfulController<Batch> {
     }
 
     def vaadinBatchView() {
+        if (!params.id) {
+            notFound()
+            return
+        }
         render(view: "vaadinBatchView", model: [id: params.id])
     }
 
