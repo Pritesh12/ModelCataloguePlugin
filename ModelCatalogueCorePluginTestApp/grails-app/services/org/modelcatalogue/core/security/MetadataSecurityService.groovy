@@ -514,6 +514,7 @@ class MetadataSecurityService {
             ["/api/modelCatalogue/core/batch/*/actions/*/dependsOn", MetadataRolesUtils.roles('ADMIN'), HttpMethod.DELETE],
             ["/api/modelCatalogue/core/batch/*/actions/*/dependsOn", MetadataRolesUtils.roles('ADMIN'), HttpMethod.POST],
             ["/vaadinBatchView/*", MetadataRolesUtils.roles('ADMIN'), HttpMethod.GET],
+            ["/vaadinapp/batch", MetadataRolesUtils.roles('ADMIN'), HttpMethod.GET]
     ]
 
     public static final List MODEL_MAPPINGS = [
