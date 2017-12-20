@@ -25,9 +25,12 @@ angular.module('mc.core.catalogueElementEnhancer', ['ui.router', 'mc.util.rest',
           original[newKey] = update[newKey]
       original
 
+  vaadinBatchViewURL =  (id) -> "vaadinBatchView/#{id}"
+
   computeHref = (self, $state, names) ->
     if self.isInstanceOf "batch"
-      return $state.href('simple.actions.show', {id: self.id})
+      return vaadinBatchViewURL(self.id)
+      #return $state.href('simple.actions.show', {id: self.id})
     if self.isInstanceOf "csvTransformation"
       return $state.href('mc.csvTransformations.show', {id: self.id})
     if self.isInstanceOf "dataModelPolicy"
@@ -105,7 +108,8 @@ angular.module('mc.core.catalogueElementEnhancer', ['ui.router', 'mc.util.rest',
 
           self.show           = (reload = false) ->
             if self.isInstanceOf "batch"
-              return $state.go('simple.actions.show', {id: self.id}, {reload: reload}); self
+              return $window.open(vaadinBatchViewURL(self.id), '_blank') # not sure if this will actually work
+              #return $state.go('simple.actions.show', {id: self.id}, {reload: reload}); self
             if self.isInstanceOf "csvTransformation"
               return $state.go('mc.csvTransformations.show', {id: self.id}, {reload: reload}); self
             if self.isInstanceOf "dataModelPolicy"
