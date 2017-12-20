@@ -8,7 +8,7 @@ class BatchController extends AbstractRestfulController<Batch> {
 
     def actionService
     BatchGormService batchGormService
-    static allowedMethods = [index: 'GET', actions: 'GET', run: 'POST', reactivate: 'POST', dismiss: 'POST', updateActionParameters: 'PUT', addDependency: 'POST', removeDependency: 'DELETE']
+    static allowedMethods = [index: 'GET', actions: 'GET', run: 'POST', reactivate: 'POST', dismiss: 'POST', updateActionParameters: 'PUT', addDependency: 'POST', removeDependency: 'DELETE', vaadinBatchView: 'GET']
 
     BatchController() {
         super(Batch)
@@ -223,6 +223,10 @@ class BatchController extends AbstractRestfulController<Batch> {
         }
 
         respond action
+    }
+
+    def vaadinBatchView() {
+        render(view: "vaadinBatchView", model: [id: params.id])
     }
 
     protected Batch findById(long id) {
