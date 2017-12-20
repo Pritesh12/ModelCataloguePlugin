@@ -21,6 +21,7 @@ class BatchUrlMappings {
         "/api/modelCatalogue/core/batch/$id/actions/$actionId/parameters"(controller: 'batch', action: 'updateActionParameters', method: HttpMethod.PUT)
         "/api/modelCatalogue/core/batch/$id/actions/$actionId/dependsOn"(controller: 'batch', action: 'removeDependency', method: HttpMethod.DELETE)
         "/api/modelCatalogue/core/batch/$id/actions/$actionId/dependsOn"(controller: 'batch', action: 'addDependency', method: HttpMethod.POST)
+        "/vaadinBatchView"(view:'batch')
     }
 }
 
