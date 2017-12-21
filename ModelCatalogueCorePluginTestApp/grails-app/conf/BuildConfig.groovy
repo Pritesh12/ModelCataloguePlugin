@@ -124,6 +124,8 @@ grails.project.dependency.resolution = {
         compile ("org.modelcatalogue:crf-builder-builder:$crfBuilderVersion")
         compile ("org.modelcatalogue:crf-builder-preview:$crfBuilderVersion")
 
+        compile("com.vaadin:metadata_poc:1.0-SNAPSHOT")
+
         test 'xmlunit:xmlunit:1.6'
         test "org.grails:grails-datastore-test-support:1.0.2-grails-2.4"
         test "org.modelcatalogue:mc-builder-xml:$mcToolkitVersion"
