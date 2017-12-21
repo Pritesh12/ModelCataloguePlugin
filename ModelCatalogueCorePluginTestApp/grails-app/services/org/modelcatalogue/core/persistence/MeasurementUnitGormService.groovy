@@ -2,7 +2,6 @@ package org.modelcatalogue.core.persistence
 
 import grails.gorm.DetachedCriteria
 import grails.transaction.Transactional
-import org.modelcatalogue.core.DataClass
 import org.modelcatalogue.core.DataModel
 import org.modelcatalogue.core.MeasurementUnit
 import org.modelcatalogue.core.WarnGormErrors
@@ -68,7 +67,7 @@ class MeasurementUnitGormService implements WarnGormErrors {
         findQueryBySymbolAndDataModel(muSymbol, dataModel).get()
     }
 
-    protected DetachedCriteria<DataClass> findQueryBySymbolAndDataModel(String muSymbol, DataModel dataModelParam) {
+    protected DetachedCriteria<MeasurementUnit> findQueryBySymbolAndDataModel(String muSymbol, DataModel dataModelParam) {
         MeasurementUnit.where { symbol == muSymbol && dataModel == dataModelParam }
     }
 }
