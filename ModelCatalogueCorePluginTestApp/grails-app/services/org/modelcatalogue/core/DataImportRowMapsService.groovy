@@ -37,6 +37,7 @@ class DataImportRowMapsService {
     DataModel processRowMaps(List<Map<String, String>> rowMaps, Map<String, Object> headersMap, String dataModelName = this.dataModelName) {
         int count = 0
         DataModel dataModel = processDataModel(dataModelName)
+
         for (Map<String, String> rowMap in rowMaps) {
             log.info("creating row" + count)
             DataClass dc = processDataClass(dataModel, headersMap, rowMap)
@@ -44,8 +45,7 @@ class DataImportRowMapsService {
             DataType dt = processDataType(dataModel, headersMap, rowMap, mu)
             DataElement de = processDataElement(dataModel, headersMap, rowMap, dt)
             de.addToContainedIn(dc)
-            dataElementGormService.save(de)
-
+            saveDataElement(de)
             count++
         }
         log.info("finished importing rows#" + rowMaps.size())
@@ -74,7 +74,7 @@ class DataImportRowMapsService {
         //if "class" separated by . (regEx) create class hierarchy if applicable,
         //if not then populate the parent data class with the appropriate data element
         while (dcNameIx < maxDcNameIx) { // we are just checking names at this point (above the leaf)
-            dc = dataClassGormService.findByNameAndDataModel(className, dataModel)
+            dc = findDataClassByfindByNameAndDataModel(className, dataModel)
             if (!dc) {
                 dc = dataClassGormService.saveWithNameAndDataModel(className, dataModel)
                 // any cat id or description will not apply here
@@ -89,25 +89,27 @@ class DataImportRowMapsService {
             className = dcNameList[++dcNameIx]
         }
         // now we are processing the actual (leaf) class, so need to check if there is a model catalogue id (dcCode)
-        if (dcCode && (dc = dataClassGormService.findByModelCatalogueIdAndDataModel(className, dataModel))) {
+        if (dcCode && (dc = findDataClassByModelCatalogueIdAndDataModel(className, dataModel))) {
             if (className != dc.getName()) { // yes, check if the name has changed
                 dc.setName(className)
-                dataClassGormService.save(dc)
+                saveDataClass(dc)
+
             }
         } else {
             // see if there is a data class with this name - if so make sure you get the right version i.e. highest version number
             // it will be the latest one - only one of the same name per class and the data model is version specific
-            dc = dataClassGormService.findByNameAndDataModel(className, dataModel)
+            dc = findDataClassByfindByNameAndDataModel(className, dataModel)
         }
         if (dc) { // we found a DC, just need to check the description
             if (dcDescription != dc.getDescription()) {
                 dc.setDescription(dcDescription)
-                dataClassGormService.save(dc)
+                saveDataClass(dc)
             }
         } else { // need to create one - this time with all the parameters
             // the data class doesn't already exist in the model so create it
             Map<String, Object> params = paramsAddCodeNameDesc([dataModel: dataModel], dcCode, className, dcDescription)
-            dc = dataClassGormService.save(params)
+            DataClass dataClassInstance = new DataClass(params)
+            dc = saveDataClass(dataClassInstance)
         }
         // maybe check if the parent link is already in the incomingRelationships before calling addToChildOf?
         if (parentDC) {
@@ -127,54 +129,53 @@ class DataImportRowMapsService {
         child.addToChildOf(parent)
     }
 
-    /**
-     *
-     * @param dataModel
-     * @param headersMap
-     * @param rowMap
-     * @return
-     */
-    MeasurementUnit processMeasurementUnit(DataModel dataModel, Map<String, Object> headersMap, Map<String, String> rowMap) {
+
+    MeasurementUnitProperties measurementUnitProperties(Map<String, Object> headersMap, Map<String, String> rowMap) {
         //import the measurement unit for the data type (to be used in the creation of data type if applicable)
         String muCatId = tryHeader(ConfigHeadersMap.measurementUnitCode, headersMap, rowMap)
         String muSymbol = tryHeader(ConfigHeadersMap.measurementUnitSymbol, headersMap, rowMap)
         String muName = tryHeader(ConfigHeadersMap.measurementUnitName, headersMap, rowMap) ?: (muSymbol ?: (muCatId ?: DEFAULT_MU_NAME))
+        new MeasurementUnitProperties(name: muName, symbol: muSymbol, modelCatalogueId: muCatId)
+    }
 
-        MeasurementUnit mu
+    MeasurementUnit findMeasurementUnit(MeasurementUnitProperties muProps, DataModel dataModel) {
+        if (muProps.modelCatalogueId) {
+            return findMeasurementUnitByModelCatalogueIdAndDataModel(muProps.modelCatalogueId, dataModel)
 
-        if (muName == DEFAULT_MU_NAME) { // there is no measurement unit
+        } else if (muProps.name) { //see if a datatype with this name already exists in this model
+            return findMeasurementUnitByNameAndDataModel(muProps.name, dataModel)
+
+        } else if (muProps.symbol) {
+            return findMeasurementUnitBySymbolAndDataModel(muProps.symbol, dataModel)
+        }
+        null
+    }
+
+    void populateMeasurementUnit(MeasurementUnit mu, MeasurementUnitProperties muProps) {
+        mu.name = (mu.name != muProps.name) ? muProps.name : mu.name
+        mu.symbol = (mu.symbol != muProps.symbol) ? muProps.symbol : mu.symbol
+        mu.modelCatalogueId = (mu.modelCatalogueId != muProps.modelCatalogueId) ? muProps.modelCatalogueId : mu.modelCatalogueId
+    }
+
+    MeasurementUnit processMeasurementUnit(DataModel dataModel, Map<String, Object> headersMap, Map<String, String> rowMap) {
+        MeasurementUnitProperties muProps = measurementUnitProperties(headersMap, rowMap)
+        if (muProps.name == DEFAULT_MU_NAME) { // there is no measurement unit
             return null
         }
-
-        if (muCatId) {
-            mu = measurementUnitGormService.findByModelCatalogueIdAndDataModel(muCatId, dataModel)
-        } else if (muName) { //see if a datatype with this name already exists in this model
-            mu = measurementUnitGormService.findByNameAndDataModel(muName, dataModel)
-        } else if (muSymbol) {
-            mu = measurementUnitGormService.findBySymbolAndDataModel(muSymbol, dataModel)
-        }
-        // all this to test
-        //if no mu then create one
+        MeasurementUnit mu = findMeasurementUnit(muProps, dataModel)
         if (!mu) {
             mu = new MeasurementUnit()
             mu.setDataModel(dataModel)
-            mu.setName(muName)
-            if (muCatId) {
-                mu.setModelCatalogueId(muCatId)
-            }
-            if (muSymbol) {
-                mu.setSymbol(muSymbol)
-            }
-            measurementUnitGormService.save(mu)
-        } else {
-            Map<String, String> params = update('modelCatalogueId', mu.getModelCatalogueId(), muCatId)
-            params = update('name', mu.getName(), muName, params)
-            params = update('symbol', mu.getSymbol(), muSymbol, params)
-            if (params) { // will be null if no updates
-                mu.save(params)
-            }
         }
-        return mu
+        populateMeasurementUnit(mu, muProps)
+        saveMeasurementUnit(mu)
+        mu
+    }
+
+    DataTypeProperties dataTypeProperties(Map<String, Object> headersMap, Map<String, String> rowMap) {
+        String dtCode = tryHeader(ConfigHeadersMap.dataTypeCode, headersMap, rowMap)
+        String dtName = tryHeader(ConfigHeadersMap.dataTypeName, headersMap, rowMap)
+        new DataTypeProperties(modelCatalogueId: dtCode, name: dtName)
     }
 
     /**
@@ -186,34 +187,36 @@ class DataImportRowMapsService {
      * @return
      */
     DataType processDataType(DataModel dataModel, Map<String, Object> headersMap, Map<String, String> rowMap, MeasurementUnit mu) {
-        String dtCode = tryHeader(ConfigHeadersMap.dataTypeCode, headersMap, rowMap)
-        String dtName = tryHeader(ConfigHeadersMap.dataTypeName, headersMap, rowMap)
+        DataTypeProperties dataTypeProperties = dataTypeProperties(headersMap, rowMap)
+
         DataType dt
 
         //see if a datatype with the model catalogue id already exists in this model
 
-        if (dtCode && (dt = dataTypeGormService.findByModelCatalogueIdAndDataModel(dtCode, dataModel))) {
-            if ((dtName ?: '') != dt.getName()) {
-                dt.setName(dtName)
-                dataTypeGormService.save(dt)
+        if (dataTypeProperties.modelCatalogueId && (dt = findDataTypeByModelCatalogueIdAndDataModel(dataTypeProperties.modelCatalogueId, dataModel))) {
+            if ((dataTypeProperties.name ?: '') != dt.getName()) {
+                dt.setName(dataTypeProperties.name)
+                saveDataType(dt)
             }
-        } else if (dtName && (dt = dataTypeGormService.findByNameAndDataModel(dtName, dataModel))) {
+        } else if (dataTypeProperties.name && (dt = findDataTypeByNameAndDataModel(dataTypeProperties.name, dataModel))) {
             //see if a datatype with this name already exists in this model
-            if (dtCode != dt.getModelCatalogueId()) {
+            if (dataTypeProperties.modelCatalogueId != dt.getModelCatalogueId()) {
                 dt = null
                 // create a new datatype further on - it is unlikely to have datatypes with the same name but different catalogue ids
-//                dt.setModelCatalogueId(dtCode)
+//                dt.setModelCatalogueId(dataTypeProperties.modelCatalogueId)
 //                updated = true
             }
         }
         //if no dt then create one
-        if ( !dt ) {
+        if (!dt) {
             if (mu) {
-                Map<String, Object> params = paramsAddCodeNameDesc([dataModel: dataModel, measurementUnit: mu], dtCode, dtName)
-                dt = primitiveTypeGormService.save(params)
+                Map<String, Object> params = paramsAddCodeNameDesc([dataModel: dataModel, measurementUnit: mu], dataTypeProperties.modelCatalogueId, dataTypeProperties.name)
+                PrimitiveType primitiveTypeInstance = new PrimitiveType(params)
+                dt = savePrimitiveType(primitiveTypeInstance)
             } else {
-                Map<String, Object> params = paramsAddCodeNameDesc([dataModel: dataModel], dtCode, dtName)
-                dt = dataTypeGormService.save(params)
+                Map<String, Object> params = paramsAddCodeNameDesc([dataModel: dataModel], dataTypeProperties.modelCatalogueId, dataTypeProperties.name)
+                DataType dataTypeInstance = new DataType(params)
+                dt = saveDataType(dataTypeInstance)
             }
         }
         dt
@@ -228,9 +231,9 @@ class DataImportRowMapsService {
     DataModel processDataModel(String dataModelName) {
         //see if an open EHR model already exists, if not create one
         //could consider changing this - if there are multiple versions - should make sure we use the latest one.
-        DataModel dataModel = dataModelGormService.findByName(dataModelName)
+        DataModel dataModel = findDataModelByName(dataModelName)
 
-        if ( dataModel ) {
+        if (dataModel) {
             log.info("Found Data Model: ${dataModelName}")
             // if one exists, check to see if it's a draft
             // but if it's finalised create a new version
@@ -242,23 +245,14 @@ class DataImportRowMapsService {
         }
 
         log.info("Creating new DataModel: ${dataModelName}")
-        dataModelGormService.saveWithName(dataModelName)
+        saveDataModel(dataModelName)
     }
 
-    /**
-     * flushes a batch of updates and releases memory
-     */
-    void cleanGORM() {
-        try {
-            session.flush()
-        } catch (Exception e) {
-            log.error(session)
-            log.error(" error: " + e.message)
-            throw e
-        }
-        session.clear()
-        propertyInstanceMap.get().clear()
-        log.info("cleaned up GORM")
+    DataElementProperties dataElementProperties(Map<String, Object> headersMap, Map<String, String> rowMap) {
+        String deCode = tryHeader(ConfigHeadersMap.dataElementCode, headersMap, rowMap)
+        String deName = tryHeader(ConfigHeadersMap.dataElementName, headersMap, rowMap)
+        String deDescription = tryHeader(ConfigHeadersMap.dataElementDescription, headersMap, rowMap)
+        new DataElementProperties(modelCatalogueId: deCode, name: deName, description: deDescription)
     }
 
     /**
@@ -272,29 +266,29 @@ class DataImportRowMapsService {
     DataElement processDataElement(DataModel dataModel, Map<String, Object> headersMap, Map<String, String> rowMap, DataType dt) {
         Boolean updated = false
         List<String> metadataKeys = headersMap['metadata']
-        String deCode = tryHeader(ConfigHeadersMap.dataElementCode, headersMap, rowMap)
-        String deName = tryHeader(ConfigHeadersMap.dataElementName, headersMap, rowMap)
-        String deDescription = tryHeader(ConfigHeadersMap.dataElementDescription, headersMap, rowMap)
+        DataElementProperties dataTypeProperties = dataElementProperties(headersMap, rowMap)
+
         //see if a data element exists with this model catalogue id
         DataElement de
 
-        if (deCode || deName) {
-            de = dataElementGormService.findByModelCatalogueIdAndDataModel(deCode, dataModel)
+        if (dataTypeProperties.modelCatalogueId || dataTypeProperties.name) {
+            de = findDataElementByModelCatalogueIdAndDataModel(dataTypeProperties.modelCatalogueId, dataModel)
 
-            if (deCode && de) {
+            if (dataTypeProperties.modelCatalogueId && de) {
                 String oldDeName = de.getName()
-                if (deName != oldDeName) {
+                if (dataTypeProperties.name != oldDeName) {
                     de.setName(deName)
                     updated = true
                 }
 
-            } else if (deName) {
+            } else if (dataTypeProperties.name) {
                 // TODO this throws a runtime exception
-                de = null // dataElementGormService.findByNameAndDataModel(deName, dataModel)
-                if ( de ) {  //if not see if a data element exists in this model with the same name
+                de = null // dataElementGormService.findByNameAndDataModel(dataElementProperties.name, dataModel)
+                if (de) {  //if not see if a data element exists in this model with the same name
                     String oldDeCatId = de.getModelCatalogueId()
-                    if (deCode != oldDeCatId) { // have a new DE - will not happen if no code (cat id)
-                        de = newDataElement(dataModel, dt, rowMap, metadataKeys, deCode, deName, deDescription)
+                    if (dataTypeProperties.modelCatalogueId != oldDeCatId) {
+                        // have a new DE - will not happen if no code (cat id)
+                        de = newDataElement(dataModel, dt, rowMap, metadataKeys, dataTypeProperties.modelCatalogueId, dataTypeProperties.name, dataTypeProperties.description)
                         updated = true
                     }
                 }
@@ -304,8 +298,8 @@ class DataImportRowMapsService {
         if (de) {
             DataType oldDeDataType = de.getDataType()
             String oldDeDescription = de.getDescription()
-            if (deDescription != oldDeDescription) {
-                de.setDescription(deDescription)
+            if (dataTypeProperties.description != oldDeDescription) {
+                de.setDescription(dataTypeProperties.description)
                 updated = true
             }
             if (dt != oldDeDataType) {
@@ -316,26 +310,27 @@ class DataImportRowMapsService {
                 updated = true
             }
         } else { //if no de then create one
-            de = newDataElement(dataModel, dt, rowMap, metadataKeys, deCode, deName, deDescription)
+            de = newDataElement(dataModel, dt, rowMap, metadataKeys, dataTypeProperties.modelCatalogueId, dataTypeProperties.name, dataTypeProperties.description)
             updated = true
         }
-        updated ? dataElementGormService.save(de) : de
+        updated ? saveDataElement(de) : de
     }
 
-    /**
-     *
-     * @param dataModel
-     * @param dt
-     * @param rowMap
-     * @param metadataKeys
-     * @param deCode
-     * @param deName
-     * @param deDescription
-     * @return
-     */
+/**
+ *
+ * @param dataModel
+ * @param dt
+ * @param rowMap
+ * @param metadataKeys
+ * @param deCode
+ * @param deName
+ * @param deDescription
+ * @return
+ */
     DataElement newDataElement(DataModel dataModel, DataType dt, Map<String, String> rowMap, List<String> metadataKeys, String deCode, String deName, String deDescription) {
         Map<String, Object> params = paramsAddCodeNameDesc([dataModel: dataModel, dataType: dt], deCode, deName, deDescription)
-        DataElement de = dataElementGormService.save(params)
+        DataElement dataElementInstance = new DataElement(params)
+        DataElement de = saveDataElement(dataElementInstance)
         addMetadata(de, rowMap, metadataKeys)
         de
     }
@@ -433,11 +428,90 @@ class DataImportRowMapsService {
      */
     Map<String, String> update(String key, String oldValue, String newValue, Map<String, String> params = null) {
         if (oldValue != newValue) {
-            if (params == null)
+            if (params == null) {
                 params = [key: newValue]
-            else
+            } else {
                 params[key] = newValue
+            }
         }
-        return params
+        params
     }
+
+
+    DataClass saveDataClass(DataClass dc) {
+        dataClassGormService.save(dc)
+    }
+
+    MeasurementUnit saveMeasurementUnit(MeasurementUnit measurementUnit) {
+        measurementUnitGormService.save(measurementUnit)
+    }
+
+    PrimitiveType savePrimitiveType(PrimitiveType primitiveTypeInstance) {
+        primitiveTypeGormService.save(primitiveTypeInstance)
+    }
+
+    DataType saveDataType(DataType dataTypeInstance) {
+        dataTypeGormService.save(dataTypeInstance)
+    }
+
+    DataModel saveDataModel(String dataModelName) {
+        dataModelGormService.saveWithName(dataModelName)
+    }
+
+    DataModel findDataModelByName(String dataModelName) {
+        dataModelGormService.findByName(dataModelName)
+    }
+
+    MeasurementUnit findMeasurementUnitByModelCatalogueIdAndDataModel(String muCataId, DataModel dataModel) {
+        measurementUnitGormService.findByModelCatalogueIdAndDataModel(muCatId, dataModel)
+    }
+
+    MeasurementUnit findMeasurementUnitByNameAndDataModel(String muName, DataModel dataModel) {
+        measurementUnitGormService.findByNameAndDataModel(muName, dataModel)
+    }
+
+    MeasurementUnit findMeasurementUnitBySymbolAndDataModel(String muSymbol, DataModel dataModel) {
+        measurementUnitGormService.findBySymbolAndDataModel(muSymbol, dataModel)
+    }
+
+    DataClass findDataClassByfindByNameAndDataModel(String className, DataModel dataModel) {
+        dataClassGormService.findByNameAndDataModel(className, dataModel)
+    }
+
+    DataClass findDataClassByModelCatalogueIdAndDataModel(String className, DataModel dataModel) {
+        dataClassGormService.findByModelCatalogueIdAndDataModel(className, dataModel)
+    }
+
+    DataType findDataTypeByModelCatalogueIdAndDataModel(String dtCode, DataModel dataModel) {
+        dataTypeGormService.findByModelCatalogueIdAndDataModel(dtCode, dataModel)
+    }
+
+    DataType findDataTypeByNameAndDataModel(String dtName, DataModel dataModel) {
+        dataTypeGormService.findByNameAndDataModel(dtName, dataModel)
+    }
+
+    DataElement findDataElementByModelCatalogueIdAndDataModel(String modelCatalogueId, DataModel dataModel) {
+        dataElementGormService.findByModelCatalogueIdAndDataModel(modelCatalogueId, dataModel)
+    }
+
+    DataElement saveDataElement(DataElement dataElement) {
+        dataElementGormService.save(dataElement)
+    }
+}
+
+class DataTypeProperties {
+    String name
+    String modelCatalogueId
+}
+
+class DataElementProperties {
+    String name
+    String modelCatalogueId
+    String description
+}
+
+class MeasurementUnitProperties {
+    String name
+    String symbol
+    String modelCatalogueId
 }
