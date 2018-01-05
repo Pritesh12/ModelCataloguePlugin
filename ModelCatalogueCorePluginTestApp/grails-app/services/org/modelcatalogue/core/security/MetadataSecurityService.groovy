@@ -2,7 +2,6 @@ package org.modelcatalogue.core.security
 
 import grails.util.Environment
 import groovy.transform.CompileStatic
-import org.codehaus.groovy.grails.commons.env.GrailsEnvironment
 import org.modelcatalogue.core.persistence.RequestmapGormService
 import org.springframework.http.HttpMethod
 
@@ -780,6 +779,7 @@ class MetadataSecurityService {
 
         if (Environment.current == Environment.DEVELOPMENT) {
             requestmapGormService.createRequestmapIfMissing('/dbconsole/**', 'permitAll')
+            requestmapGormService.createRequestmapIfMissing('/vaadinApp/**', 'permitAll')
         }
 
         requestmapGormService.createRequestmapIfMissing('/monitoring/**',                         'ROLE_SUPERVISOR')
