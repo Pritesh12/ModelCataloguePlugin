@@ -1,0 +1,25 @@
+@import "metadata-theme.scss";
+@import "addons.scss";
+
+// This file prefixes all rules with the theme name to avoid causing conflicts with other themes.
+// The actual styles should be defined in metadata-theme.scss
+
+.metadata-theme {
+  @include addons;
+  @include metadata-theme;
+
+  .v-caption-actions-label-top{
+    font-weight: bold;
+    font-size: 24px;
+  }
+
+  .v-caption-actions-label-bottom{
+    font-style: italic;
+  }
+
+  .label-layout {
+    display: flex;
+    flex-direction: column;
+    color: red;
+  }
+}
