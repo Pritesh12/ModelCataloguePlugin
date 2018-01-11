@@ -1,28 +1,32 @@
 package com.metadata.views.actions;
 
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 
 import com.metadata.service.domain.Action;
 import com.metadata.service.domain.Dest;
 import com.metadata.service.domain.Source;
-import com.metadata.service.domain.State;
 import com.vaadin.guice.annotation.UIScope;
-import com.vaadin.icons.VaadinIcons;
 import com.vaadin.server.ExternalResource;
-import com.vaadin.ui.Button;
 import com.vaadin.ui.Grid;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Link;
-import com.vaadin.ui.UI;
+import com.vaadin.ui.RadioButtonGroup;
 import com.vaadin.ui.themes.ValoTheme;
 
-import org.vaadin.dialogs.ConfirmDialog;
-
-import java.util.Set;
+import java.util.Collection;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 @UIScope
-public class ActionsGrid extends Grid<Action> {
+class ActionsGrid extends Grid<Action> {
+
+    enum RunState {
+        YES, NO, MAYBE
+    }
+
+    //all run-states must be tracked independently of the actual items
+    private final Map<Action, RunState> runStates = new WeakHashMap<>();
 
     @Inject
     ActionsGrid(ActionDataProvider dataProvider){
@@ -54,42 +58,49 @@ public class ActionsGrid extends Grid<Action> {
             .setCaption("Match")
             .setId("matchScore");
 
-        addComponentColumn(StartActionButton::new)
-            .setCaption("start")
-            .setId("start");
-
-        addComponentColumn(e -> new Label(e.getState().toString()))
-                .setCaption("state")
-                .setId("state");
+        addComponentColumn(StartButtonGroup::new)
+            .setCaption("Run?")
+            .setWidth(240)
+            .setId("run");
 
         setSizeFull();
 
-        setColumnOrder("dataModel1", "dataModel2", "matchScore");
+        setColumnOrder("dataModel1", "dataModel2", "matchScore", "run");
+
+        //style-generator conditionally assigns css-styles to rows
+        //all rows with runState Yes get 'yellow-row', all those with 'No' get
+        //'gray-row'
+        setStyleGenerator(item -> {
+            final RunState runState = runStates.computeIfAbsent(item, action -> RunState.MAYBE);
+
+            switch (runState){
+                case YES:
+                    return "yellow-row";
+                case NO:
+                    return "gray-row";
+                default:
+                    return "";
+            }
+        });
     }
 
-    private final Set<State> startableStates = ImmutableSet.of(
-        State.DISMISSED,
-        State.FAILED,
-        State.UNDECIDED
-    );
+    private final Collection<RunState> ALL_RUN_STATES = ImmutableList.copyOf(RunState.values());
 
-    class StartActionButton extends Button{
-        StartActionButton(Action action){
-            super((VaadinIcons.START_COG));
-            addStyleName(ValoTheme.BUTTON_BORDERLESS);
+    class StartButtonGroup extends RadioButtonGroup<RunState> {
+        StartButtonGroup(Action action){
+           super("", ALL_RUN_STATES);
+           addStyleName(ValoTheme.OPTIONGROUP_HORIZONTAL);
+           addValueChangeListener(e -> {
+               //when a different option is selected ( Yes, No, Maybe ),
+               //it is put into the runStates and the grid is asked to
+               //update the item, which will trigger the styleGenerator
+               //for that row
+               runStates.put(action, e.getValue());
+               ActionsGrid.this.getDataProvider().refreshItem(action);
+           });
 
-            //setEnabled(startableStates.contains(action.getState()));
-
-            addClickListener(event -> ConfirmDialog.show(
-                UI.getCurrent(),
-                "start action" + action.getId() + "?",
-                confirmDialog -> {
-                    if(confirmDialog.isConfirmed()){
-                        action.setState(State.PERFORMED);
-                        ActionsGrid.this.getDataProvider().refreshAll();
-                    }
-                }
-            ));
+           //default runState is 'maybe'
+           setValue(runStates.computeIfAbsent(action, a -> RunState.MAYBE));
         }
     }
 }
