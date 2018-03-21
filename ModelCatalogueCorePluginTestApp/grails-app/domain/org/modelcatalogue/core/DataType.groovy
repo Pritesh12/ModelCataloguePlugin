@@ -64,16 +64,12 @@ class DataType extends CatalogueElement implements Validating {
      * @return
      */
     boolean validateRule(Object x) {
-        rule = replaceAmpersandHtmlEntityWithAmpersandSymbol(rule)
-        ValueValidator.validateRule(this, x)
+        rule = processDtRule(x)
+        ValueValidator.validateRule(this, rule)
     }
 
-    @CompileStatic
-    String replaceAmpersandHtmlEntityWithAmpersandSymbol(String rule) {
-        if ( !rule ) {
-            return rule
-        }
-        rule.replaceAll(/&amp;/, '&')
+    String processDtRule(String rule) {
+        return rule.replaceAll(/&amp;/, '&')
     }
 
     @Override
@@ -88,12 +84,7 @@ class DataType extends CatalogueElement implements Validating {
 
     @Override
     List<? extends Validating> getBases() {
-        try {
-            return isBasedOn as List<DataType>
-        } catch(MissingPropertyException e) {
-            return [] as List<DataType>
-        }
-
+        return isBasedOn as List<DataType>
     }
 
     static String suggestName(Set<String> suggestions) {
